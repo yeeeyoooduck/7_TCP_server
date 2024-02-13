@@ -5,7 +5,7 @@ sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 # Socket Bind
 sock.bind(('', 9090))
 # Socket Listen
-sock.listen(5)
+sock.listen(0)
 
 # Socket Accept
 while True:

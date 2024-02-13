@@ -16,141 +16,119 @@ Conversion notes:
 ----->
 
 
-## Простейшие TCP-клиент и эхо-сервер
+# Простейшие TCP live stream video server и client
 
-### Цель работы
+## Цель работы
 
 Познакомиться с приемами работы с сетевыми сокетами в языке программирования Python.
 
-### Задания для выполнения
-
-1. Создать простой TCP-сервер, который принимает от клиента строку (порциями по 1 КБ) и возвращает ее. (Эхо-сервер).
-2. Сервер должен выводить в консоль служебные сообщения (с пояснениями) при наступлении любых событий:
-    1. Запуск сервера;
-    2. Начало прослушивания порта;
-    3. Подключение клиента;
-    4. Прием данных от клиента;
-    5. Отправка данных клиенту;
-    6. Отключение клиента;
-    7. Остановка сервера.
-3. Напишите простой TCP-клиент, который устанавливает соединение с сервером, считывает строку со стандартного ввода и посылает его серверу.
-4. Клиент должен выводить в консоль служебные сообщения (с пояснениями) при наступлении любых событий:
-    1. Соединение с сервером;
-    2. Разрыв соединения с сервером;
-    3. Отправка данных серверу;
-    4. Прием данных от сервера.
-
-### Методические указания
-
-https://habr.com/ru/companies/skillfactory/articles/690186/
-
-Применяемая в IP-сетях архитектура клиент-сервер использует IP-пакеты для коммуникации между клиентом и сервером. Клиент отправляет запрос серверу, на который тот отвечает. В случае с TCP/IP между клиентом и сервером устанавливается соединение (обычно с двусторонней передачей данных), а в случае с UDP/IP - клиент и сервер обмениваются пакетами (датаграммами) с негарантированной доставкой.
-
-Каждый сетевой интерфейс IP-сети имеет уникальный в этой сети адрес (IP-адрес). Упрощенно можно считать, что каждый компьютер в сети Интернет имеет собственный IP-адрес. При этом в рамках одного сетевого интерфейса может быть несколько сетевых портов. Для установления сетевого соединения приложение клиента должно выбрать свободный порт и установить соединение с серверным приложением, которое слушает (listen) порт с определенным номером на удаленном сетевом интерфейсе. Пара IP-адрес и порт характеризуют сокет (гнездо) - начальную (конечную) точку сетевой коммуникации. Для создания соединения TCP/IP необходимо два сокета: один на локальной машине, а другой - на удаленной. Таким образом, каждое сетевое соединение имеет IP-адрес и порт на локальной машине, а также IP-адрес и порт на удаленной машине.
-
-Прежде всего нам необходимо создать сокет:
-
-``` python
-sock = socket.socket()
-```
-
-https://docs.python.org/3/library/socket.html
-
-pip install numpy, opencv-python
-pip install imutils
-
-Здесь ничего особенного нет и данная часть является общей и для клиентских и для серверных сокетов. Дальше мы будем писать код для сервера. 
-
-#### Сервер
-
- ![](np10-9.png)
-Теперь нам нужно определится с хостом и портом для нашего сервера. Насчет хоста — мы оставим строку пустой, чтобы наш сервер был доступен для всех интерфейсов. А порт возьмем любой от нуля до 65535. Следует отметить, что в большинстве операционных систем прослушивание портов с номерами 0 — 1023 требует особых привилегий. Для примера выберем порт 9090. Теперь свяжем наш сокет с данными хостом и портом с помощью метода bind, которому передается кортеж, первый элемент (или нулевой, если считать от нуля) которого — хост, а второй — порт:
+## Задания для выполнения
 
 
-``` python
-sock.bind(('', 9090))
-```
 
-Теперь у нас все готово, чтобы принимать соединения. С помощью метода listen мы запустим для данного сокета режим прослушивания. Метод принимает один аргумент — максимальное количество подключений в очереди. Установим его в единицу:
+Today we are going to live stream video using socket programming and OpenCV in python. where we will extracting video of host webcam and then send it to the client. thus establishing a video connection between server and client.
 
+Socket programming:
+-------------------
 
-``` python
-sock.listen(1)
-```
+First, What is a **Socket**? Sockets allow communication between two different processes on the same or different machines, To be more precise, it's a way to talk to other computers using standard Unix file descriptors. Here a socket works much like a low-level file descriptor as commands such as read() and write() work with sockets in the same way they do with files and pipes.
 
-Ну вот, наконец-то, мы можем принять подключение с помощью метода accept, который возвращает кортеж с двумя элементами: новый сокет и адрес клиента. Именно этот сокет и будет использоваться для приема и посылке клиенту данных.
+**Socket programming** is a way of connecting two nodes on a network to communicate with each other. One socket(node) listens on a particular port at an IP, while other socket reaches out to the other to form a connection. Server forms the listener socket while client reaches out to the server.
 
+![](np10-9.png)
 
-``` python
-conn, addr = sock.accept()
-```
+Creating the Host Side Setup:
+-----------------------------
 
-Вот и все. Теперь мы установили с клиентом связь и можем с ним «общаться». Т.к. мы не можем точно знать, что и в каких объемах клиент нам пошлет, то мы будем получать данные от него небольшими порциями. Чтобы получить данные нужно воспользоваться методом recv, который в качестве аргумента принимает количество байт для чтения. Мы будем читать порциями по 1024 байт (или 1 кб):
+We will create a socket, get host name, host IP and print them to check retrieval:
 
-``` python
-while True:
-     data = conn.recv(1024)
-     if not data:
-         break
-     conn.send(data.upper())
-```
+    # Importing the libraries
+    import socket, cv2, pickle, struct, imutils
+    # Create Socket
+    server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    host_name  = socket.gethostname()
+    host_ip = socket.gethostbyname(host_name)
+    print('HOST IP:',host_ip)
+    port = 9999
+    socket_address = (host_ip,port)
+    
 
-Как мы и говорили для общения с клиентом мы используем сокет, который получили в результате выполнения метода accept. Мы в бесконечном цикле принимаем 1024 байт данных с помощью метода recv. Если данных больше нет, то этот метод ничего не возвращает. Таким образом мы можем получать от клиента любое количество данных.
+Here we made a socket instance and passed it two parameters. The first parameter is AF\_INET and the second one is SOCK\_STREAM. AF\_INET refers to the address family ipv4. The SOCK\_STREAM means connection oriented TCP protocol.
 
-Дальше в нашем примере для наглядности мы что-то сделаем с полученными данными и отправим их обратно клиенту. Например, с помощью метода upper у строк вернем клиенту строку в верхнем регистре.
+**bind() method**: A server has a bind() method which binds it to a specific ip and port so that it can listen to incoming requests on that IP and port.
 
-Теперь можно и закрыть соединение:
+**listen() method**: A server has a listen() method which puts the server into listen mode.
 
-``` python
-conn.close()
-```
+    # Socket Bind
+    server_socket.bind(socket_address)
+    # Socket Listen
+    server_socket.listen(5) //5 here means that 5 connections are kept waiting if the server is busy and if a 6th socket trys to connect then the connection is refused.
+    
+    print("LISTENING AT:",socket_address)
+    
 
-Собственно сервер готов. Он принимает соединение, принимает от клиента данные, возвращает их в виде строки в верхнем регистре и закрывает соединение. 
+**imutils.resize()** :-The resize function of imutils maintains the aspect ratio and provides the keyword arguments width and height so the image can be resized to the intended width/height while maintaining aspect ratio and ensuring the dimensions of the image do not have to be explicitly computed by the developer.
 
-#### Клиент
+**pickle.dump()** :-The dump () method of the pickle module in Python, converts a Python object hierarchy into a byte stream.
 
-Думаю, что теперь будет легче. Да и само клиентское приложение проще — нам нужно создать сокет, подключиться к серверу послать ему данные, принять данные и закрыть соединение. Все это делается так:
+**struct.pack ()** :-This is used to pack elements into a Python byte-string (byte object).
 
-```python
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+    # Socket Accept
+    while True:
+        client_socket,addr = server_socket.accept()
+        print('GOT CONNECTION FROM:',addr)
+        if client_socket:
+            vid = cv2.VideoCapture(0)
+            while(vid.isOpened()):
+                img,frame = vid.read()
+                frame = imutils.resize(frame,width=320)
+                a = pickle.dumps(frame)
+                message = struct.pack("Q",len(a))+a
+                client_socket.sendall(message)
+    
+                cv2.imshow('TRANSMITTING VIDEO',frame)
+                key = cv2.waitKey(1) & 0xFF
+                if key ==ord('q'):
+                    client_socket.close()
+                    break
+    cv2.destroyAllWindows()
+    
 
-import socket
+Creating the Client Side Setup:
 
-sock = socket.socket()
-sock.connect(('localhost', 9090))
-sock.send('hello, world!')
+As we did in host side:
 
-data = sock.recv(1024)
-sock.close()
+    import socket, cv2, pickle, struct
+    # create socket
+    client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    host_ip = '192.168.56.1' #IP Address of Host to be Entered 
+    port = 9999
+    client_socket.connect((host_ip,port))
+    data = b""
+    payload_size = struct.calcsize("Q")
+    
 
-print data
-```
+After connecting to the host, we will unpack the message received. The byte stream of a pickled Python object can converted back to a Python object using the pickle.load () method.
 
-Думаю, что все понятно, т.к. все уже разбиралось ранее. Единственное новое здесь — это метод connect, с помощью которого мы подключаемся к серверу. Дальше мы читаем 1024 байт данных и закрываем сокет.
+    while True:
+        while len(data) < payload_size:
+            packet = client_socket.recv(4*1024) 
+            if not packet: break
+            data+=packet
+        packed_msg_size = data[:payload_size]
+        data = data[payload_size:]
+        msg_size = struct.unpack("Q",packed_msg_size)[0]
+        while len(data) < msg_size:
+            data += client_socket.recv(4*1024)
+        frame_data = data[:msg_size]
+        data  = data[msg_size:]
+        frame = pickle.loads(frame_data)
+        cv2.imshow("RECEIVING VIDEO",frame)
+        key = cv2.waitKey(1) & 0xFF
+        if key  == ord('q'):
+            break
+    client_socket.close()
+    cv2.destroyAllWindows()
+    
 
-### Контрольные вопросы
-
-1. Чем отличаются клиентские и серверные сокеты?
-2. Как можно передавать через сокеты текстовую информацию?
-3. Какие операции с сокетами блокируют выполнение программы?
-4. Что такое неблокирующие сокеты?
-5. В чем преимущества и недостатки использования TCP по сравнению с UDP?
-6. Какие системные вызовы, связанные с сокетами используются только на стороне сервера?
-7. На каком уровне модели OSI работают сокеты?
-
-### Задания для самостоятельного выполнения
-
-1. Проверьте возможность подключения к серверу с локальной, виртуальной и удаленной машины. 
-2. Модифицируйте код сервера таким образом, чтобы он читал строки в цикле до тех пор, пока клиент не введет “exit”. Можно считать, что это команда разрыва соединения со стороны клиента.
-3. Модифицируйте код сервера таким образом, чтобы при разрыве соединения клиентом он продолжал слушать данный порт и, таким образом, был доступен для повторного подключения.
-4. Модифицируйте код клиента и сервера таким образом, чтобы номер порта и имя хоста (для клиента) они спрашивали у пользователя. Реализовать безопасный ввод данных и значения по умолчанию.
-5. Модифицировать код сервера таким образом, чтобы все служебные сообщения выводились не в консоль, а в специальный лог-файл.
-6. Модифицируйте код сервера таким образом, чтобы он автоматически изменял номер порта, если он уже занят. Сервер должен выводить в консоль номер порта, который он слушает.
-7. Реализовать сервер идентификации. Сервер должен принимать соединения от клиента и проверять, известен ли ему уже этот клиент (по IP-адресу). Если известен, то поприветствовать его по имени. Если неизвестен, то запросить у пользователя имя и записать его в файл. Файл хранить в произвольном формате.
-8. Реализовать сервер аутентификации. Похоже на предыдущее задание, но вместе с именем пользователя сервер отслеживает и проверяет пароли. Дополнительные баллы за безопасное хранение паролей. Дополнительные баллы за поддержание сессии на основе токена наподобие cookies
-9. Напишите вспомогательные функции, которые реализуют отправку и принятие текстовых сообщений в сокет. Функция отправки должна дополнять сообщение заголовком фиксированной длины, в котором содержится информация о длине сообщения. Функция принятия должна читать сообщение с учетом заголовка. В дополнении реализуйте преобразование строки в байтовый массив и обратно в этих же функциях. Дополнително оценивается, если эти функции будут реализованы как унаследованное расширение класса socket библиотеки socket.
-10. Дополните код клиента и сервера таким образом, чтобы они могли посылать друг другу множественные сообщения один в ответ на другое.
-11. Напишите многопользовательский чат. Подсказка: используйте сокеты, основанные на протоколе UDP.
-
-<!-- Docs to Markdown version 1.0β17 -->
+So we are ready with the code of both client and host side. First we will run the host side code, which will make host under listening mode and then we will run the client size code and client will establish the connection.
