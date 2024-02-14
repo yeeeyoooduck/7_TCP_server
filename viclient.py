@@ -1,9 +1,9 @@
 import socket, cv2, pickle, struct
 # create socket
 sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-host_ip = '127.0.0.1' #IP Address of Host to be Entered 
-port = 9090
-sock.connect((host_ip,port))
+
+sock.connect(('127.0.0.1',9090))
+
 data = b""
 payload_size = struct.calcsize("Q")
 

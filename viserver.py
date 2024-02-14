@@ -1,5 +1,5 @@
 # Importing the libraries
-import socket, cv2, pickle, struct, imutils
+import socket, cv2, pickle, struct
 # Create Socket
 sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 # Socket Bind
@@ -15,7 +15,6 @@ while True:
         vid = cv2.VideoCapture(0)
         while(vid.isOpened()):
             img,frame = vid.read()
-            frame = imutils.resize(frame,width=320)
             a = pickle.dumps(frame)
             message = struct.pack("Q",len(a))+a
             conn.sendall(message)

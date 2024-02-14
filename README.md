@@ -26,21 +26,21 @@ Conversion notes:
 
 
 
-Today we are going to live stream video using socket programming and OpenCV in python. where we will extracting video of host webcam and then send it to the client. thus establishing a video connection between server and client.
+Сегодня Мы собираемся вещать потоковое видео, используя программирование сокетов и OpenCV в Python. Мы получим видеопоток от хоста от веб -камеры, а затем отправим его клиенту. Таким образом, установим подключение между сервером и клиентом.
 
-Socket programming:
+Программирование сокета:
 -------------------
 
-First, What is a **Socket**? Sockets allow communication between two different processes on the same or different machines, To be more precise, it's a way to talk to other computers using standard Unix file descriptors. Here a socket works much like a low-level file descriptor as commands such as read() and write() work with sockets in the same way they do with files and pipes.
+Во -первых, что такое **сокет** ? Сокеты позволяют общаться между двумя разными процессами на одних и тех же или разных машинах, точнее, это способ общаться с другими компьютерами, используя стандартные файловые дескрипторы Unix. Здесь сокет работает так же, как дескриптор файла низкого уровня,  такие команды, как read () и write (), работают с сокеты так же, как и с файлами и устройствами.
 
-**Socket programming** is a way of connecting two nodes on a network to communicate with each other. One socket(node) listens on a particular port at an IP, while other socket reaches out to the other to form a connection. Server forms the listener socket while client reaches out to the server.
+**Программирование сокета** это способ подключения двух узлов в сети для общения друг с другом. Один (узел) прослушивает конкретный порт по IP, в то время как другой узел обращается к другому, чтобы сформировать соединение.Сервер формирует сокет слушателя, пока клиент обращается к серверу.
 
 ![](np10-9.png)
 
-Creating the Host Side Setup:
+Создание сервера:
 -----------------------------
 
-We will create a socket, get host name, host IP and print them to check retrieval:
+Мы создадим сокет, получим имя хоста, IP -хост и выведим их в консоль, чтобы проверить:
 
     # Importing the libraries
     import socket, cv2, pickle, struct, imutils
@@ -53,11 +53,11 @@ We will create a socket, get host name, host IP and print them to check retrieva
     socket_address = (host_ip,port)
     
 
-Here we made a socket instance and passed it two parameters. The first parameter is AF\_INET and the second one is SOCK\_STREAM. AF\_INET refers to the address family ipv4. The SOCK\_STREAM means connection oriented TCP protocol.
+Здесь мы сделали экземпляр сокета и передали ему два параметра. Первый параметр - AF\_INET, а второй - SOCK\_STREAM. AF\_INET относится к адресам IPv4. SOCK\_STREAM означает, ориентированный на соединение по TCP протоколу.
 
-**bind() method**: A server has a bind() method which binds it to a specific ip and port so that it can listen to incoming requests on that IP and port.
+**bind() method**: Сервер имеет метод bind (), который связывает его с определенным IP и портом, чтобы он мог прослушать входящие запросы по этому IP и порту.
 
-**listen() method**: A server has a listen() method which puts the server into listen mode.
+**listen() method**: Сервер имеет метод прослушивания (), который переводит сервер в режим прослушивания.
 
     # Socket Bind
     server_socket.bind(socket_address)
@@ -67,11 +67,11 @@ Here we made a socket instance and passed it two parameters. The first parameter
     print("LISTENING AT:",socket_address)
     
 
-**imutils.resize()** :-The resize function of imutils maintains the aspect ratio and provides the keyword arguments width and height so the image can be resized to the intended width/height while maintaining aspect ratio and ensuring the dimensions of the image do not have to be explicitly computed by the developer.
+**imutils.resize()** :-Функция изменения размера imutils сохраняет соотношение сторон и обеспечивает ширину и высоту аргументов ключевого слова, чтобы изображение можно было изменить до предполагаемой ширины/высоты при сохранении соотношения сторон и гарантирования размеров изображения не должно быть явно рассчитано разработчиком..
 
-**pickle.dump()** :-The dump () method of the pickle module in Python, converts a Python object hierarchy into a byte stream.
+**pickle.dump()** :-Метод дампа () модуль в Python преобразует объект Python в байтовый поток.
 
-**struct.pack ()** :-This is used to pack elements into a Python byte-string (byte object).
+**struct.pack ()** :-Он используется для упаковки элементов в байтовую строку на питоне (байтовый объект).
 
     # Socket Accept
     while True:
@@ -94,9 +94,9 @@ Here we made a socket instance and passed it two parameters. The first parameter
     cv2.destroyAllWindows()
     
 
-Creating the Client Side Setup:
+# Создание клиента:
 
-As we did in host side:
+Как мы делали на стороне сервера, всё тоже самое и здесь:
 
     import socket, cv2, pickle, struct
     # create socket
@@ -108,7 +108,7 @@ As we did in host side:
     payload_size = struct.calcsize("Q")
     
 
-After connecting to the host, we will unpack the message received. The byte stream of a pickled Python object can converted back to a Python object using the pickle.load () method.
+После подключения к хосту мы распаковываем полученное сообщение. Байтовый поток pickled-объекта Python может преобразовать обратно в объект Python, используя метод Pickle.load ().
 
     while True:
         while len(data) < payload_size:
@@ -131,4 +131,4 @@ After connecting to the host, we will unpack the message received. The byte stre
     cv2.destroyAllWindows()
     
 
-So we are ready with the code of both client and host side. First we will run the host side code, which will make host under listening mode and then we will run the client size code and client will establish the connection.
+Таким образом, мы написали код как клиентской стороны, так и хоста. Сначала мы запустим  код хоста, который переведет хост в режиме прослушивания, а затем запустим код клиента, и клиент установит соединение.
