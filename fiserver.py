@@ -11,7 +11,7 @@ import os
 # For details visit pyshine.com
 q = queue.Queue(maxsize=10)
 
-filename =  'sample.mp4'
+filename =  '/home/vladimir/fa-practics/fa-np-practice/1_echo_server/sample.mp4'
 
 
 BUFF_SIZE = 65536
