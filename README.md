@@ -1,305 +1,139 @@
-Как отправить аудио и видео с помощью программирования сокетов в Python
-==============================================================
+<!----- Conversion time: 1.019 seconds.
+
+
+Using this Markdown file:
+
+1. Cut and paste this output into your source file.
+2. See the notes and action items below regarding this conversion run.
+3. Check the rendered output (headings, lists, code blocks, tables) for proper
+   formatting and use a linkchecker before you publish this page.
+
+Conversion notes:
+
+* Docs to Markdown version 1.0β17
+* Wed Sep 18 2019 01:22:59 GMT-0700 (PDT)
+* Source doc: https://docs.google.com/open?id=13Bwj-zrzPHWxDyeuZUzSwTNSqtZj9FI-spwD9tnhUTA
+----->
+
+
+# Простейшие TCP live stream video server и client
+
+## Цель работы
+
+Познакомиться с приемами работы с сетевыми сокетами в языке программирования Python.
+
+## Заданиe для тех у кого есть веб-камера </br> **Если веб-камеры нет, выполняйте [другое задание](README-fileserver.md)**
 
 
 
-Здравствуйте друзья!Сегодняшнее учебное пособие по отправке аудио и видеопотоков с сервера на клиент.Эти потоки будут извлечены из файла MP4.Мы будем использовать сокет UDP для передачи видеопотока и TCP для аудио -потока.Каждый файл MP4 состоит из этих потоков, с различной частотой кадров и частотой выборки аудио.Обычно скорость выборки аудио установлена на 44100 Гц.Однако частота видео кадров может варьироваться, например,15 кадров в секунду (FPS), 20 кадров в секунду, 24 кадры, 30 кадров в секунду или даже больше.Если мы просто используем OpenCV для извлечения кадров MP4 и отправить его (с задержкой в 1 мс, показывающем каждый кадр), то, возможно, что ваше видео не будет воспроизводиться при заданной частоте кадров.
+Сегодня Мы собираемся вещать потоковое видео, используя программирование сокетов и OpenCV в Python. Мы получим видеопоток от хоста от веб -камеры, а затем отправим его клиенту. Таким образом, установим подключение между сервером и клиентом.
 
-Спасибо нашему другу Эйтану, который предложил сделать это руководство для решения проблемы различной частоты кадров в видео OpenCV.Эти вариации вызваны тем фактом, что, когда мы отображаем изображение OpenCV в цикле времени, мы считаем его воспроизведение с точки зрения задержки, указанной в функции WaitKey ().Задержка в функции waitKey () очень важна для правильного отображения видео при правильной частоте кадров.Таким образом, вопрос в том, как сохранить заданную частоту кадров видео во время рендеринга?Вероятный ответ состоит в том, чтобы стабилизировать время пробы рендеринга (TS) в цикле путем проверки, если текущая частота кадров выше или ниже желаемой неотъемлемой частоты кадров.Соответственно, увеличение или сокращение времени отбора проб.
+Программирование сокета:
+-------------------
 
-Блок кода ниже показывает, как получить присущие кадры в секунду (FPS) файла MP4.
+Во -первых, что такое **сокет** ? Сокеты позволяют общаться между двумя разными процессами на одних и тех же или разных машинах, точнее, это способ общаться с другими компьютерами, используя стандартные файловые дескрипторы Unix. Здесь сокет работает так же, как дескриптор файла низкого уровня,  такие команды, как read () и write (), работают с сокеты так же, как и с файлами и устройствами.
 
-    vid = cv2.VideoCapture(filename)
-    FPS = vid.get(cv2.CAP_PROP_FPS)
+**Программирование сокета** это способ подключения двух узлов в сети для общения друг с другом. Один (узел) прослушивает конкретный порт по IP, в то время как другой узел обращается к другому, чтобы сформировать соединение.Сервер формирует сокет слушателя, пока клиент обращается к серверу.
+
+![](np10-9.png)
+
+Создание сервера:
+-----------------------------
+
+Мы создадим сокет, получим имя хоста, IP -хост и выведим их в консоль, чтобы проверить:
+
+    # Importing the libraries
+    import socket, cv2, pickle, struct, imutils
+    # Create Socket
+    server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    host_name  = socket.gethostname()
+    host_ip = socket.gethostbyname(host_name)
+    print('HOST IP:',host_ip)
+    port = 9999
+    socket_address = (host_ip,port)
     
 
-Допустим, FPS-это измеренные кадры в секунду в режиме реального времени, поэтому приведенный ниже код показывает, как регулировать TS:
+Здесь мы сделали экземпляр сокета и передали ему два параметра. Первый параметр - AF\_INET, а второй - SOCK\_STREAM. AF\_INET относится к адресам IPv4. SOCK\_STREAM означает, ориентированный на соединение по TCP протоколу.
 
-    if fps>FPS:
-        TS+=0.001
-    elif fps<FPS:
-        TS-=0.001
-    else:
-        pass
+**bind() method**: Сервер имеет метод bind (), который связывает его с определенным IP и портом, чтобы он мог прослушать входящие запросы по этому IP и порту.
+
+**listen() method**: Сервер имеет метод прослушивания (), который переводит сервер в режим прослушивания.
+
+    # Socket Bind
+    server_socket.bind(socket_address)
+    # Socket Listen
+    server_socket.listen(5) //5 here means that 5 connections are kept waiting if the server is busy and if a 6th socket trys to connect then the connection is refused.
+    
+    print("LISTENING AT:",socket_address)
     
 
-Ниже приведен код Server.py, который одновременно запускает три потока для получения синхронизации:
-```py
-    executor.submit(audio_stream)  # to generate and send stream of audio data
-    executor.submit(video_stream_gen) # to generate stream of frames
-    executor.submit(video_stream) # to obtain and send video stream, with a synchronized fps
-```   
+**imutils.resize()** :-Функция изменения размера imutils сохраняет соотношение сторон и обеспечивает ширину и высоту аргументов ключевого слова, чтобы изображение можно было изменить до предполагаемой ширины/высоты при сохранении соотношения сторон и гарантирования размеров изображения не должно быть явно рассчитано разработчиком..
 
-Вот полный код Server.py, пожалуйста, следуйте нашим предыдущим учебным пособиям о UDP и Sockets TCP для получения более подробной информации о поиске и правильном запуске кода.Замените `filename = 'count.mp4'`` на ваш файл MP4, а также измените `host_ip =' 192.168.1.21' 'с вашим.В начале звук будет извлечен из этого файла и сохранить как «temp.wav».Также обратите внимание, что FFMPEG должен быть установлен в вашем системном пути.Вы можете загрузить [stast] (https://ffmpeg.org/download.html) ffmpeg из разделения «Получить пакеты и исполняемые файлы» в соответствии с вашей ОС.После установки FFMPEG вы можете подтвердить установку, написав это в терминале:
+**pickle.dump()** :-Метод дампа () модуль в Python преобразует объект Python в байтовый поток.
 
-    ffmpeg
-    
+**struct.pack ()** :-Он используется для упаковки элементов в байтовую строку на питоне (байтовый объект).
 
-И вы увидите этот выход так:
-
-    ffmpeg version 3.4.1 Copyright (c) 2000-2017 the FFmpeg developers
-      built with Apple LLVM version 9.0.0 (clang-900.0.39.2)
-     ...
-     ...
-    
-
-Вам также нужен Pyaudio, если вы не можете установить его с помощью PIP -установщика, то, пожалуйста, перейдите по этому [ссылке] (https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio) и загрузите `.whl`Согласно вашей версии Python.Например, если вы используете Python 3.6, вам нужно загрузить это `pyaudio -0.2.11 -CP36 -CP36M -Win_amd64.whl`.После этого перейдите в местоположение этой загрузки, откройте оболочку или терминал питания и используйте команду ниже:
-
-    pip3.6 install PyAudio‑0.2.11‑cp36‑cp36m‑win_amd64.whl
-    
-
-
-## server.py
-```py
-# This is server code to send video and audio frames over UDP/TCP
-
-import cv2, imutils, socket
-import numpy as np
-import time
-import base64
-import threading, wave, pyaudio,pickle,struct
-import sys
-import queue
-import os
-# For details visit pyshine.com
-q = queue.Queue(maxsize=10)
-
-filename =  'count.mp4'
-command = "ffmpeg -i {} -ab 160k -ac 2 -ar 44100 -vn {}".format(filename,'temp.wav')
-os.system(command)
-
-BUFF_SIZE = 65536
-server_socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-server_socket.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,BUFF_SIZE)
-host_name = socket.gethostname()
-host_ip = '192.168.1.21'#  socket.gethostbyname(host_name)
-print(host_ip)
-port = 9688
-socket_address = (host_ip,port)
-server_socket.bind(socket_address)
-print('Listening at:',socket_address)
-
-vid = cv2.VideoCapture(filename)
-FPS = vid.get(cv2.CAP_PROP_FPS)
-global TS
-TS = (0.5/FPS)
-BREAK=False
-print('FPS:',FPS,TS)
-totalNoFrames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
-durationInSeconds = float(totalNoFrames) / float(FPS)
-d=vid.get(cv2.CAP_PROP_POS_MSEC)
-print(durationInSeconds,d)
-
-def video_stream_gen():
-   
-    WIDTH=400
-    while(vid.isOpened()):
-        try:
-            _,frame = vid.read()
-            frame = imutils.resize(frame,width=WIDTH)
-            q.put(frame)
-        except:
-            os._exit(1)
-    print('Player closed')
-    BREAK=True
-    vid.release()
-	
-
-def video_stream():
-    global TS
-    fps,st,frames_to_count,cnt = (0,0,1,0)
-    cv2.namedWindow('TRANSMITTING VIDEO')        
-    cv2.moveWindow('TRANSMITTING VIDEO', 10,30) 
+    # Socket Accept
     while True:
-        msg,client_addr = server_socket.recvfrom(BUFF_SIZE)
-        print('GOT connection from ',client_addr)
-        WIDTH=400
-        
-        while(True):
-            frame = q.get()
-            encoded,buffer = cv2.imencode('.jpeg',frame,[cv2.IMWRITE_JPEG_QUALITY,80])
-            message = base64.b64encode(buffer)
-            server_socket.sendto(message,client_addr)
-            frame = cv2.putText(frame,'FPS: '+str(round(fps,1)),(10,40),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
-            if cnt == frames_to_count:
-                try:
-                    fps = (frames_to_count/(time.time()-st))
-                    st=time.time()
-                    cnt=0
-                    if fps>FPS:
-                        TS+=0.001
-                    elif fps<FPS:
-                        TS-=0.001
-                    else:
-                        pass
-                except:
-                    pass
-            cnt+=1
-            
-            
-            
-            cv2.imshow('TRANSMITTING VIDEO', frame)
-            key = cv2.waitKey(int(1000*TS)) & 0xFF	
-            if key == ord('q'):
-                os._exit(1)
-                TS=False
-                break	
-                
-
-def audio_stream():
-    s = socket.socket()
-    s.bind((host_ip, (port-1)))
-
-    s.listen(5)
-    CHUNK = 1024
-    wf = wave.open("temp.wav", 'rb')
-    p = pyaudio.PyAudio()
-    print('server listening at',(host_ip, (port-1)))
-    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                    channels=wf.getnchannels(),
-                    rate=wf.getframerate(),
-                    input=True,
-                    frames_per_buffer=CHUNK)
-
-    client_socket,addr = s.accept()
-
-    while True:
+        client_socket,addr = server_socket.accept()
+        print('GOT CONNECTION FROM:',addr)
         if client_socket:
-            while True:
-                data = wf.readframes(CHUNK)
-                a = pickle.dumps(data)
+            vid = cv2.VideoCapture(0)
+            while(vid.isOpened()):
+                img,frame = vid.read()
+                frame = imutils.resize(frame,width=320)
+                a = pickle.dumps(frame)
                 message = struct.pack("Q",len(a))+a
                 client_socket.sendall(message)
-                
-
-from concurrent.futures import ThreadPoolExecutor
-with ThreadPoolExecutor(max_workers=3) as executor:
-    executor.submit(audio_stream)
-    executor.submit(video_stream_gen)
-    executor.submit(video_stream)
-```
-### Запустите:
-
-    python server.py
+    
+                cv2.imshow('TRANSMITTING VIDEO',frame)
+                key = cv2.waitKey(1) & 0xFF
+                if key ==ord('q'):
+                    client_socket.close()
+                    break
+    cv2.destroyAllWindows()
     
 
-После запуска Server.py очередь рамков будет хранить 10 кадров, остановит выполнение кода и подождите, пока первый кадр будет выведен из очереди, а затем процесс добавления и удаления кадров в очереди продолжается.Обратите внимание, что Windows of imshow () размещаются в предопределенных местах, если мы перетащим эти окна, операция отображения кадров повлияет на синхронизацию.Если коды работают, пожалуйста, оставьте окно, показывая изображения в их исходных местах.Это просто доказательство концепции, что видео и аудиоданные могут быть отправлены из сокетов с помощью Python.В любое время, если вы хотите уйти, нажмите на изображение и нажмите Q.Ниже приведен код клиента.После того, как сервер будет настроен, запустите клиент -код ниже, и вы увидите, как частота кадров стабилизирует и сохраняет синхронизацию аудио и видео.
-### client.py
+# Создание клиента:
 
-```py
-# Welcome to PyShine
-# This is client code to receive video and audio frames over UDP/TCP
+Как мы делали на стороне сервера, всё тоже самое и здесь:
 
-import cv2, imutils, socket
-import numpy as np
-import time, os
-import base64
-import threading, wave, pyaudio,pickle,struct
-# For details visit pyshine.com
-BUFF_SIZE = 65536
-
-BREAK = False
-client_socket = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-client_socket.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,BUFF_SIZE)
-host_name = socket.gethostname()
-host_ip = '192.168.1.21'#  socket.gethostbyname(host_name)
-print(host_ip)
-port = 9688
-message = b'Hello'
-
-client_socket.sendto(message,(host_ip,port))
-
-def video_stream():
-	
-	cv2.namedWindow('RECEIVING VIDEO')        
-	cv2.moveWindow('RECEIVING VIDEO', 10,360) 
-	fps,st,frames_to_count,cnt = (0,0,20,0)
-	while True:
-		packet,_ = client_socket.recvfrom(BUFF_SIZE)
-		data = base64.b64decode(packet,' /')
-		npdata = np.fromstring(data,dtype=np.uint8)
-	
-		frame = cv2.imdecode(npdata,1)
-		frame = cv2.putText(frame,'FPS: '+str(fps),(10,40),cv2.FONT_HERSHEY_SIMPLEX,0.7,(0,0,255),2)
-		cv2.imshow("RECEIVING VIDEO",frame)
-		key = cv2.waitKey(1) & 0xFF
-	
-		if key == ord('q'):
-			client_socket.close()
-			os._exit(1)
-			break
-
-		if cnt == frames_to_count:
-			try:
-				fps = round(frames_to_count/(time.time()-st))
-				st=time.time()
-				cnt=0
-			except:
-				pass
-		cnt+=1
-		
-			
-	client_socket.close()
-	cv2.destroyAllWindows() 
-
-
-def audio_stream():
-	
-	p = pyaudio.PyAudio()
-	CHUNK = 1024
-	stream = p.open(format=p.get_format_from_width(2),
-					channels=2,
-					rate=44100,
-					output=True,
-					frames_per_buffer=CHUNK)
-					
-	# create socket
-	client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-	socket_address = (host_ip,port-1)
-	print('server listening at',socket_address)
-	client_socket.connect(socket_address) 
-	print("CLIENT CONNECTED TO",socket_address)
-	data = b""
-	payload_size = struct.calcsize("Q")
-	while True:
-		try:
-			while len(data) < payload_size:
-				packet = client_socket.recv(4*1024) # 4K
-				if not packet: break
-				data+=packet
-			packed_msg_size = data[:payload_size]
-			data = data[payload_size:]
-			msg_size = struct.unpack("Q",packed_msg_size)[0]
-			while len(data) < msg_size:
-				data += client_socket.recv(4*1024)
-			frame_data = data[:msg_size]
-			data  = data[msg_size:]
-			frame = pickle.loads(frame_data)
-			stream.write(frame)
-
-		except:
-			
-			break
-
-	client_socket.close()
-	print('Audio closed',BREAK)
-	os._exit(1)
-	
-
-
-from concurrent.futures import ThreadPoolExecutor
-with ThreadPoolExecutor(max_workers=2) as executor:
-	executor.submit(audio_stream)
-	executor.submit(video_stream)
-
-
-```
-### Запустите клиента так:
-
-    python client.py
+    import socket, cv2, pickle, struct
+    # create socket
+    client_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    host_ip = '192.168.56.1' #IP Address of Host to be Entered 
+    port = 9999
+    client_socket.connect((host_ip,port))
+    data = b""
+    payload_size = struct.calcsize("Q")
     
+
+После подключения к хосту мы распаковываем полученное сообщение. Байтовый поток pickled-объекта Python может преобразовать обратно в объект Python, используя метод Pickle.load ().
+
+    while True:
+        while len(data) < payload_size:
+            packet = client_socket.recv(4*1024) 
+            if not packet: break
+            data+=packet
+        packed_msg_size = data[:payload_size]
+        data = data[payload_size:]
+        msg_size = struct.unpack("Q",packed_msg_size)[0]
+        while len(data) < msg_size:
+            data += client_socket.recv(4*1024)
+        frame_data = data[:msg_size]
+        data  = data[msg_size:]
+        frame = pickle.loads(frame_data)
+        cv2.imshow("RECEIVING VIDEO",frame)
+        key = cv2.waitKey(1) & 0xFF
+        if key  == ord('q'):
+            break
+    client_socket.close()
+    cv2.destroyAllWindows()
+    
+
+Таким образом, мы написали код как клиентской стороны, так и хоста. Сначала мы запустим  код хоста, который переведет хост в режиме прослушивания, а затем запустим код клиента, и клиент установит соединение.
+
 ## Обязательные шаги (2 балла):
-______________
 -  Сделаем скриншот и опубликуем его в папке этого репозитория для проверки преподавателем
 
  ![](2024-02-16215824.png)
